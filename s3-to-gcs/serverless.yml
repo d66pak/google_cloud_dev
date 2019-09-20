@@ -1,0 +1,51 @@
+service: s3-to-gcs 
+  - serverless-plugin-existing-s3
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux
+
+provider:
+  name: aws
+  runtime: python3.6
+  region: ap-southeast-2
+
+# you can add statements to the Lambda function's IAM Role here
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "s3:ListBucket"
+      Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
+    - Effect: "Allow"
+      Action:
+        - "s3:PutObject"
+      Resource:
+        Fn::Join:
+          - ""
+          - - "arn:aws:s3:::"
+            - "Ref" : "ServerlessDeploymentBucket"
+            - "/*"
+    - Effect: "Allow"
+      Action:
+        - "s3:GetObject"
+      Resource: "arn:aws:s3:::${opt:aws_bucket}/*"
+    - Effect: "Allow"
+      Action:
+        - "s3:PutBucketNotification"
+      Resource:
+        Fn::Join:
+          - ""
+          - - "arn:aws:s3:::${opt:aws_bucket}"
+
+functions:
+  s3_to_gcs:
+    handler: handler.s3_to_gcs
+    events:
+      - existingS3:
+          bucket: ${opt:aws_bucket}
+          events: 
+            - s3:ObjectCreated:*
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: service-account.json
+      GCS_BUCKET_NAME: ${opt:gcs_bucket}
